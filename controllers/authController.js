@@ -1,6 +1,7 @@
 const { Op } = require('sequelize')
 const db = require('./../models')
 const users = db.users
+const user_profiles = db.user_profiles
 const transporter = require('./../helper/transporter')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
@@ -63,6 +64,10 @@ const userRegister = async (req, res) => {
                 })
 
                 if (createUser) {
+                    const createProfile = await user_profiles.create({
+                        user_id: createUser.id
+                    })
+
                     const payload = { id: createUser.id, email: createUser.email, username: createUser.username, is_active: createUser.is_active, token_counter: createUser.token_counter }
                     const token = jwt.sign(payload, 'verifyToken', {
                         expiresIn: '30m'
@@ -173,7 +178,7 @@ const verifyUser = async (req, res) => {
             if (findUser) {
                 if (findUser.token_counter === verify.token_counter) {
                     const activateUser = await users.update(
-                        { is_active: true },
+                        { is_active: true, token_counter: findUser.token_counter + 1 },
                         {
                             where: {
                                 email: verify.email

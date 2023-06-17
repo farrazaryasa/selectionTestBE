@@ -4,7 +4,7 @@ const PORT = 4567
 const cors = require('cors')
 
 //import router
-const { authRouter } = require('./routers')
+const { authRouter, usersRouter, postsRouter } = require('./routers')
 
 
 app.use(express.static('public'))
@@ -20,7 +20,9 @@ app.get("/", (req, res) => {
     })
 })
 
-app.use('/users', authRouter)
+app.use('/auth', authRouter)
+app.use('/users', usersRouter)
+app.use('/posts', postsRouter)
 
 app.listen(PORT, () => {
     console.log("server run on port : ", PORT);
