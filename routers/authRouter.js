@@ -5,7 +5,7 @@ const router = express.Router()
 
 router.post('/register', authController.userRegister)
 router.post('/login', authController.userLogin)
-router.patch('/verify/:token', authController.verifyUser)
+router.patch('/verification/:token', authController.verifyUser)
 
 module.exports = router
 
