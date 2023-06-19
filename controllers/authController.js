@@ -69,7 +69,7 @@ const userRegister = async (req, res) => {
                     })
 
                     const payload = { id: createUser.id, email: createUser.email, username: createUser.username, is_active: createUser.is_active, token_counter: createUser.token_counter }
-                    const token = jwt.sign(payload, 'verifyToken', {
+                    const token = jwt.sign(payload, 'secretKey', {
                         expiresIn: '30m'
                     })
 
@@ -127,19 +127,42 @@ const userLogin = async (req, res) => {
 
             const checkUser = await bcrypt.compare(password, findUser?.password)
 
-            if (checkUser) {
+            if (checkUser === true) {
                 await users.update(
-                    { is_login: true },
+                    { is_login: true, token_counter: findUser.token_counter + 1 },
                     { where: { email: findUser?.email } }
                 )
+
+                const updatedFindUser = await users.findOne({
+                    where: {
+                        [Op.or]: [
+                            { email: findUser.email },
+                            { username: findUser.username }
+                        ]
+                    }
+                })
+
+                const payload = {
+                    id: updatedFindUser.id,
+                    name: updatedFindUser.name,
+                    email: updatedFindUser.email,
+                    username: updatedFindUser.username,
+                    is_active: updatedFindUser.is_active,
+                    token_counter: updatedFindUser.token_counter
+                }
+
+                const token = jwt.sign(payload, 'secretKey')
 
                 res.status(200).send({
                     success: true,
                     message: 'login success',
                     data: {
-                        name: findUser.name,
-                        email: findUser.email,
-                        username: findUser.username
+                        id: updatedFindUser.id,
+                        name: updatedFindUser.full_name,
+                        email: updatedFindUser.email,
+                        username: updatedFindUser.username,
+                        is_active: updatedFindUser.is_active,
+                        token: token
                     }
                 })
             } else {
@@ -152,6 +175,7 @@ const userLogin = async (req, res) => {
         }
 
     } catch (error) {
+        console.log(error);
         res.status(500).send({
             success: false,
             message: error.message,
@@ -166,7 +190,7 @@ const verifyUser = async (req, res) => {
 
         const formatToken = 'Bearer ' + token
         splitToken = formatToken.split(" ")[1]
-        let verify = jwt.verify(splitToken, 'verifyToken')
+        let verify = jwt.verify(splitToken, 'secretKey')
 
         if (verify) {
             const findUser = await users.findOne({
@@ -250,9 +274,118 @@ const verifyUser = async (req, res) => {
     }
 }
 
+const newToken = async (req, res) => {
+    try {
+        const { id } = req.body
+
+        if (!id) {
+            res.status(400).send({
+                success: false,
+                message: 'user not login yet',
+                data: null
+            })
+        } else {
+            const findUser = await users.findOne({
+                where: { id: id }
+            })
+
+            if (findUser) {
+                if (findUser.is_active === false) {
+                    const updateTokenCounter = await users.update(
+                        { token_counter: findUser.token_counter + 1 },
+                        { where: { id: findUser.id } }
+                    )
+                    const updateUser = await users.findOne({
+                        where: { id: findUser.id }
+                    })
+
+                    const payload = { id: updateUser.id, email: updateUser.email, username: updateUser.username, is_active: updateUser.is_active, token_counter: updateUser.token_counter }
+                    const token = jwt.sign(payload, 'secretKey', {
+                        expiresIn: '30m'
+                    })
+
+                    const sendEmail = await transporter.sendMail({
+                        from: 'farrazfersanda@gmail.com',
+                        to: updateUser.email,
+                        subject: 'Activation Link',
+                        html: `<h1>Verification Link</h1><p>Click link below to activate your account</p>
+                        <a href=http://localhost:3000/verification/${token}>Verification Link</a><p>(expired in 30 minutes)</p>`
+                    })
+
+                    if (updateTokenCounter && updateUser && sendEmail) {
+                        res.status(200).send({
+                            success: true,
+                            message: 'new verification link has been sent',
+                            data: {}
+                        })
+                    }
+                } else {
+                    res.status(400).send({
+                        success: false,
+                        message: 'user already verified',
+                        data: null
+                    })
+                }
+            } else {
+                res.status(404).send({
+                    success: false,
+                    message: 'user not found',
+                    data: null
+                })
+            }
+        }
+    } catch (error) {
+        res.status(500).send({
+            success: false,
+            message: error.message,
+            data: null
+        })
+    }
+}
+
+const userLogout = async (req, res) => {
+    try {
+        const { username } = req.body
+
+        if (!username) {
+            res.status(400).send({
+                success: false,
+                message: 'token missing',
+                data: null
+            })
+        } else {
+            const logoutUser = await users.update(
+                { is_login: false },
+                { where: { username: username } }
+            )
+
+            if (logoutUser) {
+                res.status(200).send({
+                    success: true,
+                    message: 'user logout success',
+                    data: {}
+                })
+            } else {
+                res.status(400).send({
+                    success: false,
+                    message: 'user logout failed',
+                    data: null
+                })
+            }
+        }
+    } catch (error) {
+        res.status(500).send({
+            success: false,
+            message: error.message,
+            data: null
+        })
+    }
+}
 
 module.exports = {
     userRegister,
     userLogin,
     verifyUser,
+    newToken,
+    userLogout
 }
