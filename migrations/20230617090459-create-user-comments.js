@@ -2,22 +2,24 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('user_profiles', {
+    await queryInterface.createTable('user_comments', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
+      post_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+      },
       user_id: {
         type: Sequelize.INTEGER,
         allowNull: false
       },
-      bio: {
-        type: Sequelize.STRING
-      },
-      profile_picture: {
-        type: Sequelize.STRING
+      comment: {
+        type: Sequelize.STRING,
+        allowNull: false
       },
       createdAt: {
         allowNull: false,
@@ -30,6 +32,6 @@ module.exports = {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('user_profiles');
+    await queryInterface.dropTable('user_comments');
   }
 };
